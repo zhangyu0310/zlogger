@@ -10,8 +10,8 @@ import (
 )
 
 func TestMultiOpenAndWrite(t *testing.T) {
-	l1 := New("./", "zlogger", false)
-	l2 := New("./", "zlogger", false)
+	l1, _ := New("./", "zlogger", false)
+	l2, _ := New("./", "zlogger", false)
 	var wg sync.WaitGroup
 	wg.Add(3)
 	go func() {
@@ -45,7 +45,7 @@ func TestMultiOpenAndWrite(t *testing.T) {
 }
 
 func TestFatal(t *testing.T) {
-	l1 := New("./", "zlogger", false)
+	l1, _ := New("./", "zlogger", false)
 	l1.Fatal("Fatal l1")
 }
 
@@ -54,7 +54,7 @@ func TestDefaultFatal(t *testing.T) {
 }
 
 func TestPanic(t *testing.T) {
-	l1 := New("./", "zlogger", false)
+	l1, _ := New("./", "zlogger", false)
 	l1.Panic("Panic l1")
 }
 
@@ -63,7 +63,7 @@ func TestDefaultPanic(t *testing.T) {
 }
 
 func TestUpdateLoggerFile(t *testing.T) {
-	l1 := New("./", "TestUpdateLoggerFile", false)
+	l1, _ := New("./", "TestUpdateLoggerFile", false)
 	var wg sync.WaitGroup
 	wg.Add(5)
 	begin := time.Now().UnixNano()
@@ -102,7 +102,7 @@ func TestUpdateLoggerFile(t *testing.T) {
 	}()
 	wg.Wait()
 	end := time.Now().UnixNano()
-	t.Log("Time cost:", end - begin)
+	t.Log("Time cost:", end-begin)
 	//file, err := ioutil.ReadFile(l1.FileName)
 	//if err != nil {
 	//	t.Log("Check function ReadFile failed.", err)

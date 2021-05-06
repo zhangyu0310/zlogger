@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-// defaultLogger is a default logger for sample function.
-var defaultLogger = New("./", "zlogger", true)
+// DefaultLogger is a default logger for sample function.
+var DefaultLogger *Logger
 
 // Logger contain log of go & file handler.
 // Use logger.xxx() to log & set right prefix.
@@ -33,7 +33,7 @@ type Logger struct {
 // @name: prefix of logs.
 // Log file name just have year-month-day
 // Time of logs record is microseconds.
-func New(path, name string, autoUpdate bool) *Logger {
+func New(path, name string, autoUpdate bool) (*Logger, error) {
 	l := Logger{
 		Path: path,
 		Name: name,
@@ -44,7 +44,7 @@ func New(path, name string, autoUpdate bool) *Logger {
 	var err error
 	l.file, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	l.logger = log.New(l.file, "", log.LstdFlags|log.Lmicroseconds|log.Lmsgprefix)
 	if l.logger != nil && autoUpdate {
@@ -61,7 +61,7 @@ func New(path, name string, autoUpdate bool) *Logger {
 			}
 		}()
 	}
-	return &l
+	return &l, nil
 }
 
 // UpdateLoggerFile update the log file name. (Date suffix)
@@ -178,25 +178,25 @@ func (logger *Logger) PanicN(n int, msg ...interface{}) {
 }
 
 func Info(msg ...interface{}) {
-	defaultLogger.InfoN(3, msg...)
+	DefaultLogger.InfoN(3, msg...)
 }
 
 func Debug(msg ...interface{}) {
-	defaultLogger.DebugN(3, msg...)
+	DefaultLogger.DebugN(3, msg...)
 }
 
 func Warn(msg ...interface{}) {
-	defaultLogger.WarnN(3, msg...)
+	DefaultLogger.WarnN(3, msg...)
 }
 
 func Error(msg ...interface{}) {
-	defaultLogger.ErrorN(3, msg...)
+	DefaultLogger.ErrorN(3, msg...)
 }
 
 func Fatal(msg ...interface{}) {
-	defaultLogger.FatalN(3, msg...)
+	DefaultLogger.FatalN(3, msg...)
 }
 
 func Panic(msg ...interface{}) {
-	defaultLogger.PanicN(3, msg...)
+	DefaultLogger.PanicN(3, msg...)
 }
