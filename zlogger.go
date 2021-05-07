@@ -6,10 +6,10 @@
 package zlogger
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"runtime"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -101,8 +101,7 @@ func getFileAndLinePrefix(depth int) string {
 			break
 		}
 	}
-	file = short
-	return file + ":" + strconv.Itoa(line) + ": "
+	return fmt.Sprintf("%s:%d: ", short, line)
 }
 
 func (logger *Logger) Info(msg ...interface{}) {
