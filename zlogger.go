@@ -14,18 +14,27 @@ import (
 	"time"
 )
 
-// DefaultLogger is a default logger for sample function.
-var DefaultLogger *Logger
+// defaultLogger is a default logger for sample function.
+var defaultLogger *Logger
 
 // Logger contain log of go & file handler.
 // Use logger.xxx() to log & set right prefix.
 type Logger struct {
-	logger   *log.Logger // Use Logger of golang
-	file     *os.File    // File handler of Logger
-	Path     string      // The path of Logger
-	Name     string      // The name of Logger without day
-	FileName string      // The name of Logger with day info
-	mutex    sync.Mutex  // Mutex for logger (Prefix order & update file safe)
+	logger     *log.Logger // Use Logger of golang
+	file       *os.File    // File handler of Logger
+	Path       string      // The path of Logger
+	Name       string      // The name of Logger without day
+	FileName   string      // The name of Logger with day info
+	mutex      sync.Mutex  // Mutex for logger (Prefix order & update file safe)
+	close      chan bool   // The logger is closed
+	autoUpdate bool        // logger can auto update log file
+}
+
+func init() {
+	err := New("./", "zlogger", false)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // New create a new logger handler.
@@ -33,10 +42,21 @@ type Logger struct {
 // @name: prefix of logs.
 // Log file name just have year-month-day
 // Time of logs record is microseconds.
-func New(path, name string, autoUpdate bool) (*Logger, error) {
+func New(path, name string, autoUpdate bool) (err error) {
+	if defaultLogger != nil {
+		defaultLogger.Close()
+	}
+	defaultLogger, err = realNew(path, name, autoUpdate)
+	return
+}
+
+// realNew the implement of New
+func realNew(path, name string, autoUpdate bool) (*Logger, error) {
 	l := Logger{
-		Path: path,
-		Name: name,
+		Path:       path,
+		Name:       name,
+		close:      make(chan bool, 0),
+		autoUpdate: autoUpdate,
 	}
 	l.FileName = name + "_" + time.Now().Format("2006-01-02")
 	filePath := l.Path + "/" + l.FileName
@@ -50,22 +70,32 @@ func New(path, name string, autoUpdate bool) (*Logger, error) {
 	if l.logger != nil && autoUpdate {
 		go func() {
 			// Check time and update logger file.
-			for true {
-				if l.FileName != l.Name+"_"+time.Now().Format("2006-01-02") {
-					if err := UpdateLoggerFile(&l); err != nil {
-						l.Error("Update logger file failed.", err)
-						break
+			t := time.NewTicker(time.Minute * 10)
+			defer t.Stop()
+			for {
+				select {
+				case <-l.close:
+					return
+				case <-t.C:
+					if l.FileName != l.Name+"_"+time.Now().Format("2006-01-02") {
+						if err := updateLoggerFile(&l); err != nil {
+							l.Error("Update logger file failed.", err)
+							break
+						}
 					}
 				}
-				time.Sleep(time.Minute * 10)
 			}
 		}()
 	}
 	return &l, nil
 }
 
-// UpdateLoggerFile update the log file name. (Date suffix)
-func UpdateLoggerFile(logger *Logger) error {
+func ForceUpdateLoggerFile() error {
+	return updateLoggerFile(defaultLogger)
+}
+
+// updateLoggerFile update the log file name. (Date suffix)
+func updateLoggerFile(logger *Logger) error {
 	logger.mutex.Lock()
 	defer logger.mutex.Unlock()
 	logger.FileName = logger.Name + "_" + time.Now().Format("2006-01-02")
@@ -176,26 +206,36 @@ func (logger *Logger) PanicN(n int, msg ...interface{}) {
 	logger.logger.Panicln(msg...)
 }
 
+func (logger *Logger) Close() {
+	logger.mutex.Lock()
+	defer logger.mutex.Unlock()
+	_ = logger.file.Close()
+	if logger.autoUpdate {
+		logger.close <- true
+		close(logger.close)
+	}
+}
+
 func Info(msg ...interface{}) {
-	DefaultLogger.InfoN(3, msg...)
+	defaultLogger.InfoN(3, msg...)
 }
 
 func Debug(msg ...interface{}) {
-	DefaultLogger.DebugN(3, msg...)
+	defaultLogger.DebugN(3, msg...)
 }
 
 func Warn(msg ...interface{}) {
-	DefaultLogger.WarnN(3, msg...)
+	defaultLogger.WarnN(3, msg...)
 }
 
 func Error(msg ...interface{}) {
-	DefaultLogger.ErrorN(3, msg...)
+	defaultLogger.ErrorN(3, msg...)
 }
 
 func Fatal(msg ...interface{}) {
-	DefaultLogger.FatalN(3, msg...)
+	defaultLogger.FatalN(3, msg...)
 }
 
 func Panic(msg ...interface{}) {
-	DefaultLogger.PanicN(3, msg...)
+	defaultLogger.PanicN(3, msg...)
 }
