@@ -6,9 +6,11 @@
 package zlogger
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -25,6 +27,10 @@ const (
 	LogLevelFatal = 5
 	LogLevelPanic = 6
 	LogLevelOff   = 7
+)
+
+var (
+	ErrPathIsNotDir = errors.New("path is not dir")
 )
 
 // defaultLogger is a default logger for sample function.
@@ -79,9 +85,22 @@ func NewInternal(path, name string, autoUpdate bool, logLevel uint8) (*Logger, e
 	}
 	l.SetLogLevel(logLevel)
 	l.FileName = getLogFileName(name)
-	filePath := l.Path + "/" + l.FileName
+	filePath := filepath.Join(l.Path, l.FileName)
 
-	var err error
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = os.MkdirAll(path, os.ModePerm)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	} else if !info.IsDir() {
+		return nil, ErrPathIsNotDir
+	}
+
 	l.file, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
@@ -117,7 +136,7 @@ func ForceUpdateLoggerFile() error {
 // updateLoggerFile update the log file name. (Date suffix)
 func (logger *Logger) updateLoggerFile() error {
 	logger.FileName = getLogFileName(logger.Name)
-	filePath := logger.Path + "/" + logger.FileName
+	filePath := filepath.Join(logger.Path, logger.FileName)
 	// Create new file handler & new logger
 	nFile, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
